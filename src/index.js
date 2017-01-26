@@ -1,4 +1,6 @@
 import { createStore, combineReducers } from "Redux";
+import React, { Component } from 'react';
+import ReactDOM from 'react-dom';
 
 
 const todo = (state = {}, action) => {
@@ -43,47 +45,144 @@ const todoApp = combineReducers({
   visibilityFilter
 });
 
-// const todoApp = (state = [], action) => {
-//   return {
-//     todos: todos(state.todos, action),
-//     visibilityFilter: visibilityFilter(state.visibilityFilter, action)
-//   };
-// };
-
-
 let store = createStore(todoApp);
 
-console.log("------Initial state------");
-console.log(store.getState());
+let nextTodoId = 0;
 
-store.dispatch({
-  type: "ADD_TODO",
-  text: "Buy Eggs",
-  id: 0
-});
-console.log("------After 1st ADD_TODO------");
-console.log(store.getState());
 
-store.dispatch({
-  type: "ADD_TODO",
-  text: "Buy Milk",
-  id: 1
-});
-console.log("------After 2nd ADD_TODO------");
-console.log(store.getState());
+const getVisibleTodos = (filter, todos) => {
+  switch(filter) {
+    case "SHOW_ALL":
+      return todos;
+    case "SHOW_COMPLETED":
+      return todos.filter(todo => todo.completed);
+    case "SHOW_ACTIVE":
+      return todos.filter(todo => !todo.completed);
+    }
+}
 
-store.dispatch({
-  type: "TOGGLE_TODO",
-  id: 1
-});
+const Todo = ({
+    onClick,
+    completed,
+    text
+  }) => {
+    return (
+      <li onClick={onClick}
+        style = {{textDecoration: completed ? 'line-through': 'none'}}>
+        {text}
+      </li>
+    );
+};
 
-console.log("------After TOGGLE_TODO------");
-console.log(store.getState());
+const TodoList = ({
+  todos,
+  onTodosClick
+}) => {
+  return (
+    <ul>
+      {todos.map(todo =>
+        <Todo
+          key={todo.id}
+          onClick={() => onTodosClick(todo.id)}
+          {...todo}/>
+      )}
+    </ul>
+  );
+};
 
-store.dispatch({
-  type: "SET_VISIBILITY_FILTER",
-  filter: "SHOW_COMPLETED"
-});
+const AddTodo = ({
+  onAddClick
+}) => {
+  let input;
+  return (
+    <div>
+      <input ref={node => {
+        input=node;
+      }}/>
+      <button onClick={() => {
+            onAddClick(input.value);
+            input.value = '';
+          }
+        }>
+        Add Todo
+      </button>
+    </div>
+  );
+};
 
-console.log("------After SET_VISIBILITY_FILTER------");
-console.log(store.getState());
+const FilterLink = ({
+  filter,
+  currentFilter,
+  children,
+  onClick
+}) => {
+  if (filter === currentFilter) {
+    return <span>{children}</span>;
+  };
+
+  return (
+    <a href="#" onClick={e => {
+      e.preventDefault();
+      onClick(filter)
+    }}>
+      {children}
+    </a>
+  );
+};
+
+const Footer = ({
+  visibilityFilter,
+  onFilterClick
+}) => (
+    <p>
+      Show
+      {' '}
+      <FilterLink filter="SHOW_ALL" currentFilter={visibilityFilter} onClick={onFilterClick}>All</FilterLink>
+      {' '}
+      <FilterLink filter="SHOW_COMPLETED" currentFilter={visibilityFilter} onClick={onFilterClick}>Completed</FilterLink>
+      {' '}
+      <FilterLink filter="SHOW_ACTIVE" currentFilter={visibilityFilter} onClick={onFilterClick}>Active</FilterLink>
+    </p>
+);
+
+const TodoApp = ({
+  todos,
+  visibilityFilter
+}) => (
+  <div>
+    <AddTodo onAddClick={text =>
+      store.dispatch({
+        type: "ADD_TODO",
+        id: nextTodoId++,
+        text
+      })
+    }/>
+    <TodoList
+      todos={getVisibleTodos(visibilityFilter, todos)}
+      onTodosClick={id => store.dispatch({
+        type: "TOGGLE_TODO",
+        id
+      })}/>
+    <Footer
+      visibilityFilter={visibilityFilter}
+      onFilterClick={filter => {
+      store.dispatch({
+        type: "SET_VISIBILITY_FILTER",
+        filter
+      });
+    }}/>
+  </div>
+);
+
+const render = () => {
+  ReactDOM.render(
+    <div>
+      <TodoApp {...store.getState()}/>
+    </div>,
+    document.getElementById('root')
+  );
+};
+
+store.subscribe(render);
+
+render();
